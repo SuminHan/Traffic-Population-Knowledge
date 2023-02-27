@@ -397,6 +397,58 @@ class BipartiteAttention(tf.keras.layers.Layer):
         X = tf.concat(tf.split(X, K, axis = 0), axis = -1)
         X = self.FC_X(X)
         return X
+
+class BipartiteAttentionViz(tf.keras.layers.Layer):
+    def __init__(self, K, d):
+        super(BipartiteAttentionViz, self).__init__()
+        self.K = K
+        self.d = d
+        self.D = K*d
+
+    def build(self, input_shape):
+        self.FC_Q = keras.Sequential([
+            layers.Dense(self.D, activation="relu")])
+        self.FC_K = keras.Sequential([
+            layers.Dense(self.D, activation="relu")])
+        self.FC_V = keras.Sequential([
+            layers.Dense(self.D, activation="relu")])
+        self.FC_X = keras.Sequential([
+            layers.Dense(self.D, activation="relu"),
+            layers.Dense(self.D)])
+        
+    def call(self, query, key, value):
+        K = self.K
+        d = self.d
+        D = self.D
+        
+        print(query.shape, key.shape, value.shape)
+        
+        query = self.FC_Q(query)
+        key = self.FC_K(key)
+        value = self.FC_V(value)
+
+        print('QKV', query.shape, key.shape, value.shape)
+    
+        query = tf.concat(tf.split(query, K, axis = -1), axis = 0)
+        key = tf.concat(tf.split(key, K, axis = -1), axis = 0)
+        value = tf.concat(tf.split(value, K, axis = -1), axis = 0)
+        
+        
+        
+        # query = tf.transpose(query, perm = (0, 2, 1, 3))
+        # key = tf.transpose(key, perm = (0, 2, 3, 1))
+        # value = tf.transpose(value, perm = (0, 2, 1, 3))   
+    
+        attention = tf.matmul(query, key, transpose_b = True)
+        attention /= (d ** 0.5)
+        attention = tf.nn.softmax(attention, axis = -1)
+        
+        # [batch_size, num_step, N, D]
+        X = tf.matmul(attention, value)
+        # X = tf.transpose(X, perm = (0, 2, 1, 3))
+        X = tf.concat(tf.split(X, K, axis = 0), axis = -1)
+        X = self.FC_X(X)
+        return X, attention
     
     
 class GatedFusion(tf.keras.layers.Layer):
